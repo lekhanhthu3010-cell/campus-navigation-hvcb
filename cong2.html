@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Chỉ đường Học viện Cán bộ TP.HCM - Cổng số 2</title>
+
+  <link rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f3f6fa;
+      color: #17324a;
+    }
+
+    header {
+      padding: 16px;
+      background: #133c60;
+      color: white;
+    }
+
+    h2 { margin: 0 0 5px; font-size: 20px; }
+    header p { margin: 0; font-size: 13px; }
+
+    .panel {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      padding: 13px 16px;
+      background: white;
+    }
+
+    .panel label {
+      font-weight: bold;
+    }
+
+    select {
+      padding: 10px;
+      border: 1px solid #bccbdb;
+      border-radius: 8px;
+      min-width: 220px;
+      max-width: 100%;
+      font-size: 15px;
+    }
+
+    #info {
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    #map {
+      height: min(75vh, 650px);
+      min-height: 400px;
+      width: 100%;
+    }
+
+    .map-label {
+      display: inline-block;
+      background: white;
+      border: 2px solid;
+      border-radius: 6px;
+      padding: 4px 7px;
+      white-space: nowrap;
+      font-weight: bold;
+      font-size: 12px;
+      box-shadow: 0 2px 6px #0004;
+    }
+
+    .start {
+      border-color: #15803d;
+      color: #15803d;
+    }
+
+    .end {
+      border-color: #b91c1c;
+      color: #b91c1c;
+    }
+
+    footer {
+      padding: 10px 16px;
+      font-size: 12px;
+      color: #475569;
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h2>CAMPUS NAVIGATION SYSTEM</h2>
+    <p>Học viện Cán bộ TP.HCM — Xuất phát từ Cổng số 2</p>
+  </header>
+
+  <div class="panel">
+    <label for="destination">Chọn điểm đến:</label>
+    <select id="destination"></select>
+    <div id="info"></div>
+  </div>
+
+  <div id="map"></div>
+
+  <footer>
+    Tuyến theo các điểm đã số hóa thực tế.
+    Khoảng cách và thời gian đi bộ là ước tính.
+  </footer>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/leaflet-ant-path@1.3.0/dist/leaflet-ant-path.js"></script>
+
+  <script>
+    const routes = {"Tòa A": [[10.812346328011804, 106.70120095884509], [10.812654571630533, 106.70150536546905]], "Tòa B": [[10.812346328011804, 106.70120095884509], [10.812654571630533, 106.70150536546905], [10.812895594829309, 106.70154504637537], [10.813037421872107, 106.70151958870434]], "Tòa C": [[10.812346328011804, 106.70120095884509], [10.812654571630533, 106.70150536546905], [10.812895594829309, 106.70154504637537], [10.813037421872107, 106.70151958870434], [10.813213787260166, 106.70152731752096], [10.813424553881097, 106.70152195310317]], "Hội trường A": [[10.812346328011804, 106.70120095884509], [10.812068152837087, 106.70122463533099], [10.811758960461962, 106.70134195312212], [10.811240691359124, 106.70232268195764], [10.811649233616903, 106.70279111502857]], "Ký túc xá sinh viên": [[10.812346328011804, 106.70120095884509], [10.81206969121349, 106.70136695312209], [10.811566483388178, 106.70173843905214], [10.812382325750024, 106.70234363533099], [10.812764056503385, 106.70219099974878], [10.812964285096962, 106.70253700469446]]};
+
+    const map = L.map('map').setView([10.8123, 106.7018], 17);
+
+    L.tileLayer(
+      'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      {
+        attribution: 'Imagery © Esri and its data providers',
+        maxZoom: 19
+      }
+    ).addTo(map);
+
+    L.control.scale({imperial: false}).addTo(map);
+
+    const selection = document.getElementById('destination');
+
+    Object.keys(routes).forEach(name => {
+      const option = document.createElement('option');
+      option.value = name;
+      option.textContent = name;
+      selection.appendChild(option);
+    });
+
+    let layers = [];
+
+    function add(layer) {
+      layer.addTo(map);
+      layers.push(layer);
+    }
+
+    function distance(a, b) {
+      const rad = x => x * Math.PI / 180;
+      const R = 6371000;
+
+      const dLat = rad(b[0] - a[0]);
+      const dLon = rad(b[1] - a[1]);
+
+      const h = Math.sin(dLat / 2) ** 2 +
+        Math.cos(rad(a[0])) *
+        Math.cos(rad(b[0])) *
+        Math.sin(dLon / 2) ** 2;
+
+      return R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+    }
+
+    function label(point, name, css) {
+      const html = '<span class="map-label ' + css + '">' + name + '</span>';
+
+      return L.marker(point, {
+        icon: L.divIcon({
+          html: html,
+          className: '',
+          iconSize: [1, 1],
+          iconAnchor: [-13, 12]
+        })
+      });
+    }
+
+    function showRoute(name) {
+      layers.forEach(layer => map.removeLayer(layer));
+      layers = [];
+
+      const points = routes[name];
+
+      const path = L.polyline.antPath(points, {
+        color: '#2563eb',
+        pulseColor: '#ffffff',
+        weight: 7,
+        dashArray: [10, 15],
+        delay: 650
+      });
+
+      add(path);
+
+      points.slice(1, -1).forEach((point, i) => {
+        add(
+          L.circleMarker(point, {
+            radius: 5,
+            color: '#c58a00',
+            weight: 2,
+            fillColor: '#facc15',
+            fillOpacity: 1
+          }).bindPopup('Lối đi trung gian ' + (i + 1))
+        );
+      });
+
+      add(
+        L.circleMarker(points[0], {
+          radius: 9,
+          color: 'white',
+          weight: 2,
+          fillColor: '#16a34a',
+          fillOpacity: 1
+        }).bindPopup('Cổng số 2')
+      );
+
+      add(
+        L.circleMarker(points[points.length - 1], {
+          radius: 9,
+          color: 'white',
+          weight: 2,
+          fillColor: '#dc2626',
+          fillOpacity: 1
+        }).bindPopup(name)
+      );
+
+      add(label(points[0], 'CỔNG SỐ 2', 'start'));
+      add(label(points[points.length - 1], name.toUpperCase(), 'end'));
+
+      let meters = 0;
+      for (let i = 1; i < points.length; i++) {
+        meters += distance(points[i - 1], points[i]);
+      }
+
+      document.getElementById('info').textContent =
+        'Cổng số 2 → ' + name +
+        ' | ' + Math.round(meters) + ' m' +
+        ' | Khoảng ' + (meters / 75).toFixed(1) +
+        ' phút đi bộ';
+
+      map.fitBounds(L.latLngBounds(points).pad(0.28));
+    }
+
+    selection.addEventListener('change', () => {
+      showRoute(selection.value);
+    });
+
+    showRoute('Tòa A');
+  </script>
+</body>
+</html>
