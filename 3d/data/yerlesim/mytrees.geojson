@@ -1,0 +1,20 @@
+{
+"type": "FeatureCollection",
+"name": "mytrees",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:EPSG::32648" } },
+"features": [
+{"type":"Feature","properties":{"osm_id":"scatter_686129_1195773","natural":"tree","height":6.4},"geometry":{"type":"Point","coordinates":[686129.771297070779838,1195773.770943236537278]}},
+{"type":"Feature","properties":{"osm_id":"scatter_686116_1195798","natural":"tree","height":7.5},"geometry":{"type":"Point","coordinates":[686116.255794557975605,1195798.357776609947905]}},
+{"type":"Feature","properties":{"osm_id":"scatter_686123_1195772","natural":"tree","height":5.5},"geometry":{"type":"Point","coordinates":[686123.86893343355041,1195772.673079802421853]}},
+{"type":"Feature","properties":{"osm_id":"scatter_686154_1195758","natural":"tree","height":5.8},"geometry":{"type":"Point","coordinates":[686154.356062309001572,1195758.746855869190767]}},
+{"type":"Feature","properties":{"osm_id":"scatter_686149_1195786","natural":"tree","height":8.2},"geometry":{"type":"Point","coordinates":[686149.105439765146002,1195786.076121337013319]}},
+{"type":"Feature","properties":{"osm_id":"scatter_686144_1195761","natural":"tree","height":7.6},"geometry":{"type":"Point","coordinates":[686144.617009605630301,1195761.50350746861659]}},
+{"type":"Feature","properties":{"osm_id":"scatter_686114_1195771","natural":"tree","height":6.3},"geometry":{"type":"Point","coordinates":[686114.151127704419196,1195771.942888089921325]}},
+{"type":"Feature","properties":{"osm_id":"scatter_686122_1195790","natural":"tree","height":8.7},"geometry":{"type":"Point","coordinates":[686122.219549826113507,1195790.808871590066701]}},
+{"type":"Feature","properties":{"osm_id":"scatter_686123_1195764","natural":"tree","height":5.8},"geometry":{"type":"Point","coordinates":[686123.477647916879505,1195764.995999352540821]}},
+{"type":"Feature","properties":{"osm_id":"scatter_686122_1195777","natural":"tree","height":5.7},"geometry":{"type":"Point","coordinates":[686122.354506661999039,1195777.174133445834741]}},
+{"type":"Feature","properties":{"osm_id":"scatter_686120_1195794","natural":"tree","height":5.2},"geometry":{"type":"Point","coordinates":[686120.556556027266197,1195794.783494055271149]}},
+{"type":"Feature","properties":{"osm_id":"scatter_686100_1195790","natural":"tree","height":8.4},"geometry":{"type":"Point","coordinates":[686100.516686968738213,1195790.353028916986659]}},
+{"type":"Feature","properties":{"osm_id":"scatter_686136_1195778","natural":"tree","height":5.7},"geometry":{"type":"Point","coordinates":[686136.222262244671583,1195778.666144660208374]}}
+]
+}

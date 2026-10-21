@@ -1,0 +1,10 @@
+{
+"type": "FeatureCollection",
+"name": "mybusstops",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:EPSG::32648" } },
+"features": [
+{"type":"Feature","properties":{"osm_id":"11809731184","highway":"bus_stop","name":"Học viện Cán bộ Thành phố"},"geometry":{"type":"Point","coordinates":[685975.64291741384659,1195776.438240070594475]}},
+{"type":"Feature","properties":{"osm_id":"12437015524","highway":"bus_stop","name":"Học viện cán bộ Thành phố Hồ Chí Minh - Cổng 6"},"geometry":{"type":"Point","coordinates":[686111.241740753641352,1195603.39060799498111]}},
+{"type":"Feature","properties":{"osm_id":"12437015528","highway":"bus_stop","name":"Học viện cán bộ Thành phố Hồ Chí Minh - Cổng 6"},"geometry":{"type":"Point","coordinates":[686212.896925583598204,1195600.760580941801891]}}
+]
+}
