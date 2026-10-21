@@ -54,110 +54,82 @@ export async function createCampusNavigation(ctx) {
   let waitingMessage = 'Đang đợi mô hình 3D tải xong…';
 
 
-  // Stable building keys are generated from source footprint coordinates in app.js.
-  const storageKey = 'hvcb-building-links-v1';
-  let links = {};
-  try { links = JSON.parse(localStorage.getItem(storageKey) || '{}'); } catch (_) {}
-  if (!links || typeof links !== 'object' || Array.isArray(links)) links = {};
-  let activeMaterials = [];
-  let picking = false;
-  const assign = document.createElement('button');
-  assign.type = 'button';
-  assign.textContent = 'Gắn tòa nhà';
-  assign.title = 'Chọn điểm đến, rồi bấm vào khối nhà tương ứng';
-  const save = document.createElement('button');
-  save.type = 'button';
-  save.textContent = 'Xuất gắn tòa nhà';
-  root.querySelector('.hvcb-buttons').append(assign, save);
-
+  // Automatic destination highlight: use the footprint nearest the route endpoint.
+  // The endpoint must be at the intended building entrance.
+  let highlighted = [];
   function clearBuildingHighlight() {
     ctx.beforeHighlight?.();
-    for (const {mesh, original, clones} of activeMaterials) {
-      mesh.material = original;
-      delete mesh.userData.hvcbDestinationActive;
-      clones.forEach(m => m.dispose());
+    for (const item of highlighted) {
+      item.mesh.material = item.original;
+      delete item.mesh.userData.hvcbDestinationActive;
+      item.clones.forEach(m => m.dispose());
     }
-    activeMaterials = [];
+    highlighted = [];
   }
 
-  function highlightDestination() {
-    const key = links[dest.value];
-    if (!key) return;
+  function segmentDistance2(p, a, b) {
+    const dx = b.x-a.x, dz = b.z-a.z;
+    const length2 = dx*dx+dz*dz;
+    const t = length2 ? Math.max(0, Math.min(1,
+      ((p.x-a.x)*dx+(p.z-a.z)*dz)/length2)) : 0;
+    return (p.x-a.x-t*dx)**2 + (p.z-a.z-t*dz)**2;
+  }
+  function triangleDistance2(p, a, b, c) {
+    const cross = (u,v,w) => (v.x-u.x)*(w.z-u.z)-(v.z-u.z)*(w.x-u.x);
+    const area = cross(a,b,c);
+    if (Math.abs(area) > 1e-8) {
+      const x = cross(a,b,p), y = cross(b,c,p), z = cross(c,a,p);
+      if ((x>=0 && y>=0 && z>=0) || (x<=0 && y<=0 && z<=0)) return 0;
+    }
+    return Math.min(segmentDistance2(p,a,b), segmentDistance2(p,b,c), segmentDistance2(p,c,a));
+  }
+  function footprintDistance2(mesh, point) {
+    const positions = mesh.geometry?.attributes?.position;
+    if (!positions) return Infinity;
+    const index = mesh.geometry.index;
+    const count = index ? index.count : positions.count;
+    const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
+    let best = Infinity;
+    for (let i=0; i+2<count; i+=3) {
+      a.fromBufferAttribute(positions,index ? index.getX(i) : i).applyMatrix4(mesh.matrixWorld);
+      b.fromBufferAttribute(positions,index ? index.getX(i+1) : i+1).applyMatrix4(mesh.matrixWorld);
+      c.fromBufferAttribute(positions,index ? index.getX(i+2) : i+2).applyMatrix4(mesh.matrixWorld);
+      best = Math.min(best, triangleDistance2(point,a,b,c));
+      if (best === 0) break;
+    }
+    return best;
+  }
+  function highlightDestination(point) {
+    const buildings = ctx.getBuildingGroup?.();
+    if (!buildings) return false;
+    buildings.updateWorldMatrix(true, true);
+    let nearestKey = null, best = Infinity;
+    buildings.traverse(mesh => {
+      if (!mesh.isMesh || !mesh.visible || !mesh.userData.hvcbBuildingKey) return;
+      const d = footprintDistance2(mesh, point);
+      if (d < best) { best = d; nearestKey = mesh.userData.hvcbBuildingKey; }
+    });
+    // Avoid highlighting an unrelated building for a distant/outdoor destination.
+    if (!nearestKey || best > 35*35) return false;
     ctx.beforeHighlight?.();
-    ctx.getBuildingGroup?.()?.traverse(mesh => {
-      if (!mesh.isMesh || mesh.userData.hvcbBuildingKey !== key) return;
+    buildings.traverse(mesh => {
+      if (!mesh.isMesh || mesh.userData.hvcbBuildingKey !== nearestKey) return;
       const original = mesh.material;
       const clones = (Array.isArray(original) ? original : [original]).map(m => {
-        const c = m.clone();
-        // Keep deliberately invisible caps invisible.
-        if (!(c.transparent && c.opacity === 0)) {
-          c.color?.setHex(0xffc247);
-          c.emissive?.setHex(0xffa000);
-          if (c.emissive) c.emissiveIntensity = 0.85;
+        const clone = m.clone();
+        if (!(clone.transparent && clone.opacity === 0)) {
+          clone.color?.setHex(0xffc247);
+          clone.emissive?.setHex(0xffa000);
+          if (clone.emissive) clone.emissiveIntensity = 0.85;
         }
-        return c;
+        return clone;
       });
       mesh.material = Array.isArray(original) ? clones : clones[0];
       mesh.userData.hvcbDestinationActive = true;
-      activeMaterials.push({mesh, original, clones});
+      highlighted.push({mesh, original, clones});
     });
+    return highlighted.length > 0;
   }
-
-  function stopPicking() {
-    picking = false;
-    assign.textContent = 'Gắn tòa nhà';
-    if (ctx.canvas) ctx.canvas.style.cursor = '';
-  }
-  assign.addEventListener('click', () => {
-    if (picking) { stopPicking(); renderRoute(false); return; }
-    picking = true;
-    assign.textContent = 'Hủy gắn';
-    if (ctx.canvas) ctx.canvas.style.cursor = 'crosshair';
-    status.textContent = 'Bấm vào khối nhà của ' + routes.destinations[dest.value] + ' (Esc để hủy).';
-  });
-  window.addEventListener('keydown', e => {
-    if (e.key === 'Escape' && picking) { stopPicking(); renderRoute(false); }
-  });
-  ctx.canvas?.addEventListener('click', e => {
-    if (!picking) return;
-    e.stopPropagation();
-    const rect = ctx.canvas.getBoundingClientRect();
-    const pointer = new THREE.Vector2(
-      (e.clientX - rect.left) / rect.width * 2 - 1,
-      -(e.clientY - rect.top) / rect.height * 2 + 1
-    );
-    const ray = new THREE.Raycaster();
-    ray.setFromCamera(pointer, camera);
-    const buildings = ctx.getBuildingGroup?.();
-    if (!buildings) return;
-    const hit = ray.intersectObject(buildings, true).find(h => h.object.userData.hvcbBuildingKey);
-    if (!hit) { status.textContent = 'Chưa chọn trúng tòa nhà. Bà bấm vào mái hoặc mặt tòa nhà nhé.'; return; }
-    links[dest.value] = hit.object.userData.hvcbBuildingKey;
-    let stored = true;
-    try { localStorage.setItem(storageKey, JSON.stringify(links)); } catch (_) { stored = false; }
-    stopPicking();
-    show = true;
-    hide.textContent = 'Ẩn tuyến';
-    renderRoute(false);
-    status.append(document.createTextNode(stored
-      ? ' · Đã nhớ tòa nhà trên trình duyệt này.'
-      : ' · Chưa lưu được trên trình duyệt; hãy xuất gắn tòa nhà.'));
-  }, true);
-  save.addEventListener('click', () => {
-    const blob = new Blob([JSON.stringify(links, null, 2)], {type: 'application/json'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = 'campus_highlights.json'; a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  });
-  // Optional published mapping makes the same destination glow for every visitor.
-  fetch('./campus_highlights.json', {cache: 'no-cache'})
-    .then(r => r.ok ? r.json() : null)
-    .then(shared => {
-      if (!shared || typeof shared !== 'object' || Array.isArray(shared)) return;
-      links = {...shared, ...links};
-      renderRoute(false);
-    }).catch(() => {});
 
   function clearRoute() {
     clearBuildingHighlight();
@@ -235,11 +207,12 @@ export async function createCampusNavigation(ctx) {
     for (let i = 1; i < current.length - 1; i++) makeDot(current[i], 0xfacc15, 1.4);
     makeLabel(current[0], `CỔNG SỐ ${gate.value}`, 'hvcb-label-start');
     makeLabel(current[current.length - 1], routes.destinations[dest.value].toUpperCase(), 'hvcb-label-end');
-    highlightDestination();
+    const buildingLit = highlightDestination(current[current.length - 1]);
     traveler.visible = true;
     traveler.position.copy(current[0]);
     const mins = total / (routes.speed_m_per_min || 75);
     status.innerHTML = `<strong>Cổng ${gate.value} → ${routes.destinations[dest.value]}</strong><br>${total.toFixed(0)} m · khoảng ${mins.toFixed(1)} phút đi bộ`;
+    if (!buildingLit) status.append(document.createTextNode(' · Chưa xác định được tòa nhà gần điểm đến.'));
     if (shouldFocus) focusRoute();
   }
 
@@ -280,8 +253,8 @@ export async function createCampusNavigation(ctx) {
   }
 
   function redraw() { renderRoute(false); }
-  gate.addEventListener('change', () => { stopPicking(); renderRoute(true); });
-  dest.addEventListener('change', () => { stopPicking(); renderRoute(true); });
+  gate.addEventListener('change', () => renderRoute(true));
+  dest.addEventListener('change', () => { show = true; hide.textContent = 'Ẩn tuyến'; renderRoute(true); });
   find.addEventListener('click', () => renderRoute(true));
   focus.addEventListener('click', focusRoute);
   hide.addEventListener('click', () => {
