@@ -109,11 +109,18 @@ export async function createCampusNavigation(ctx) {
       const d = footprintDistance2(mesh, point);
       if (d < best) { best = d; nearestKey = mesh.userData.hvcbBuildingKey; }
     });
-    // Avoid highlighting an unrelated building for a distant/outdoor destination.
-    if (!nearestKey || best > 35*35) return false;
+    // Verified campus dormitory footprints in mybuildings.geojson.
+    // The residential complex has three separate OSM building features.
+    const dormitoryIds = new Set(['1214273258', '1214273259', '1214273260']);
+    const isDormitory = dest.value === 'ky-tuc-xa';
+    if (!isDormitory && (!nearestKey || best > 35*35)) return false;
     ctx.beforeHighlight?.();
     buildings.traverse(mesh => {
-      if (!mesh.isMesh || mesh.userData.hvcbBuildingKey !== nearestKey) return;
+      if (!mesh.isMesh) return;
+      const selected = isDormitory
+        ? dormitoryIds.has(String(mesh.userData.osm_id))
+        : mesh.userData.hvcbBuildingKey === nearestKey;
+      if (!selected) return;
       const original = mesh.material;
       const clones = (Array.isArray(original) ? original : [original]).map(m => {
         const clone = m.clone();
