@@ -9500,6 +9500,27 @@ window.addEventListener('unhandledrejection', (event) => {
   handleSceneError(event?.reason || new Error('Unhandled scene promise rejection'));
 });
 
+// HVCB routing extension: start before the optional Export Studio,
+// screen recorder and other late initializers. This prevents the navigation
+// menu being stuck if a later widget raises an error.
+function startHvcbNavigation() {
+  const info = document.getElementById('hvcb-route-info');
+  if (info) info.textContent = 'Đang khởi tạo chỉ đường…';
+  createCampusNavigation({
+    THREE, CSS2DObject, scene, camera, controls,
+    metersToLocal, terrainLocalYAt,
+    terrainLayerHeight: LAYER.road,
+    isReady: () => Boolean(window.__sceneReady)
+  }).then(nav => {
+    campusNavigator = nav;
+    if (campusNavigator) campusNavigator.redraw();
+  }).catch(err => {
+    console.error('Campus navigation failed', err);
+    if (info) info.textContent = 'Lỗi chỉ đường: ' + err.message;
+  });
+}
+startHvcbNavigation();
+
 rebuildSceneSafe();
 animate();
 
@@ -10466,17 +10487,5 @@ initDockUi();
     if (measureActive) setMeasure(false);
   });
 })();
-
-// HVCB routing extension: uses projected coordinates from the original QGIS data.
-createCampusNavigation({
-  THREE, CSS2DObject, scene, camera, controls,
-  metersToLocal, terrainLocalYAt,
-  terrainLayerHeight: LAYER.road,
-  isReady: () => Boolean(window.__sceneReady)
-}).then(nav => { campusNavigator = nav; }).catch(err => {
-  console.error('Campus navigation failed', err);
-  const element = document.getElementById('hvcb-route-info');
-  if (element) element.textContent = 'Chưa thể mở chỉ đường: ' + err.message;
-});
 
 window.__moduleEvaluated = true;
