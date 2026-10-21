@@ -8,6 +8,7 @@
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%23b8978a'/%3E%3Crect x='3' y='7' width='3' height='6' fill='%23fffaf7'/%3E%3Crect x='7' y='4' width='3' height='9' fill='%23fffaf7'/%3E%3Crect x='11' y='6' width='2' height='7' fill='%23fffaf7'/%3E%3C/svg%3E">
 
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="campus_nav.css">
 
     <script type="importmap">
         {
@@ -115,6 +116,26 @@
             </div>
         </div>
     </div>
+
+    <!-- HVCB 3D campus routing controls (independent of the original viewer). -->
+    <section id="hvcb-navigation" aria-label="Chỉ đường Học viện Cán bộ">
+      <button id="hvcb-route-collapse" type="button"><span>🧭 CHỈ ĐƯỜNG HỌC VIỆN</span><span>Thu gọn ▾</span></button>
+      <div class="hvcb-fields">
+        <label>Điểm xuất phát
+          <select id="hvcb-gate"><option value="1">Cổng số 1</option><option value="2">Cổng số 2</option></select>
+        </label>
+        <label>Điểm đến
+          <select id="hvcb-destination" aria-label="Chọn địa điểm"></select>
+        </label>
+        <div class="hvcb-buttons">
+          <button id="hvcb-route-find" type="button">Hiện đường đi</button>
+          <button id="hvcb-route-focus" type="button">Xem tuyến</button>
+          <button id="hvcb-route-hide" type="button">Ẩn tuyến</button>
+        </div>
+        <div id="hvcb-route-info" aria-live="polite">Đang tải dữ liệu tuyến…</div>
+        <div class="hvcb-footnote">Tuyến tham khảo theo các điểm được số hóa thủ công; chưa phải đường ngắn nhất và cần kiểm tra lối đi thực tế.</div>
+      </div>
+    </section>
 
     <aside class="dock-panel looks-dock hidden" id="looks-dock">
         <div class="dock-head"><span>Looks</span><button class="dock-close" data-close="looks-dock" aria-label="Close look gallery">x</button></div>

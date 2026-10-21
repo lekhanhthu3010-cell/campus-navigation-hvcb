@@ -1,0 +1,17 @@
+/* Independent campus wayfinding controls */
+#hvcb-navigation{position:fixed;right:18px;top:112px;z-index:1200;width:310px;max-width:calc(100vw - 24px);padding:0;background:rgba(255,255,255,.96);color:#17324a;border:1px solid rgba(13,64,104,.18);border-radius:16px;box-shadow:0 10px 28px rgba(10,36,64,.21);font:14px/1.4 Arial,'Segoe UI',sans-serif;overflow:hidden;backdrop-filter:blur(12px)}
+#hvcb-route-collapse{font:inherit;font-weight:800;width:100%;background:#124266;color:white;border:0;display:flex;align-items:center;justify-content:space-between;padding:12px 14px;cursor:pointer;text-align:left}
+#hvcb-route-collapse span:last-child{font-size:12px;opacity:.8}
+#hvcb-navigation .hvcb-fields{padding:13px 14px 14px;display:grid;gap:9px}
+#hvcb-navigation.is-collapsed .hvcb-fields{display:none}
+#hvcb-navigation label{display:block;font-size:12px;font-weight:700;color:#2c4562}
+#hvcb-navigation select{display:block;width:100%;background:white;border:1px solid #b4c6d9;border-radius:8px;color:#163757;font-size:14px;padding:9px;margin-top:3px}
+#hvcb-navigation .hvcb-buttons{display:flex;gap:6px;flex-wrap:wrap}
+#hvcb-navigation .hvcb-buttons button{border-radius:8px;padding:8px 9px;border:1px solid #c0d4e6;background:white;color:#164469;font-weight:700;font-size:12px;cursor:pointer;flex:1}
+#hvcb-navigation .hvcb-buttons #hvcb-route-find{background:#2563eb;color:white;border-color:#2563eb;flex:1.4}
+#hvcb-navigation #hvcb-route-info{font-size:13px;background:#eef5fc;border-radius:8px;padding:9px 10px;color:#163e61;min-height:38px}
+#hvcb-navigation .hvcb-footnote{font-size:11px;color:#5c7084;line-height:1.45}
+.hvcb-scene-label{background:#fff;color:#17324a;border:2px solid #1d70ca;border-radius:7px;padding:5px 9px;font-size:13px;font-family:'Segoe UI',Arial,sans-serif;font-weight:800;white-space:nowrap;pointer-events:none;box-shadow:0 2px 8px rgba(0,0,0,.3);transform:translateY(-9px)}
+.hvcb-label-start{color:#137a39;border-color:#16a34a}
+.hvcb-label-end{color:#ae1f26;border-color:#ef4444}
+@media(max-width:720px){#hvcb-navigation{top:auto;bottom:54px;right:9px;width:min(330px,calc(100vw - 18px));max-height:65vh;overflow:auto}#hvcb-navigation .hvcb-fields{padding:10px;gap:7px}#hvcb-navigation .hvcb-buttons button{padding:7px 5px}}

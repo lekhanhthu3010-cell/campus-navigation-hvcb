@@ -1,6 +1,7 @@
 /* global GeoTIFF */
 
 import * as THREE from 'three';
+import { createCampusNavigation } from './campus_nav.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 import { Sky } from 'three/addons/objects/Sky.js';
@@ -28,6 +29,7 @@ import {
 } from './looks.js';
 import { WALK, eyeHeight, gaitOffset, gaitStrength, stepWalkVelocity, topSpeed } from './walk.js';
 
+let campusNavigator = null;
 let currentLang = 'EN';
 const urlParams = new URLSearchParams(window.location.search);
 const isPortableMode = urlParams.has('portable') || urlParams.get('portable') === '1';
@@ -8121,6 +8123,7 @@ function buildCrosswalkLayer(yollar) {
 
 function hideLoadingOverlay(delay = 450) {
   window.__sceneReady = true;
+  campusNavigator?.redraw();
   const loading = document.getElementById('loading');
   if (!loading) return;
   loading.style.opacity = 0;
@@ -9187,6 +9190,7 @@ function animate() {
   requestAnimationFrame(animate);
   const time = performance.now();
   const delta = (time - prevTime) / 1000;
+  campusNavigator?.tick(delta);
   // fps-independent step for path-following cars/bikes/pedestrians, calibrated to
   // 60 fps (clamped so a frame-rate dip slows nothing and a stall can't teleport).
   const dt60 = Math.min(Math.max(delta, 0), 0.1) * 60;
@@ -10462,5 +10466,17 @@ initDockUi();
     if (measureActive) setMeasure(false);
   });
 })();
+
+// HVCB routing extension: uses projected coordinates from the original QGIS data.
+createCampusNavigation({
+  THREE, CSS2DObject, scene, camera, controls,
+  metersToLocal, terrainLocalYAt,
+  terrainLayerHeight: LAYER.road,
+  isReady: () => Boolean(window.__sceneReady)
+}).then(nav => { campusNavigator = nav; }).catch(err => {
+  console.error('Campus navigation failed', err);
+  const element = document.getElementById('hvcb-route-info');
+  if (element) element.textContent = 'Chưa thể mở chỉ đường: ' + err.message;
+});
 
 window.__moduleEvaluated = true;
