@@ -53,7 +53,114 @@ export async function createCampusNavigation(ctx) {
   let show = true;
   let waitingMessage = 'Đang đợi mô hình 3D tải xong…';
 
+
+  // Stable building keys are generated from source footprint coordinates in app.js.
+  const storageKey = 'hvcb-building-links-v1';
+  let links = {};
+  try { links = JSON.parse(localStorage.getItem(storageKey) || '{}'); } catch (_) {}
+  if (!links || typeof links !== 'object' || Array.isArray(links)) links = {};
+  let activeMaterials = [];
+  let picking = false;
+  const assign = document.createElement('button');
+  assign.type = 'button';
+  assign.textContent = 'Gắn tòa nhà';
+  assign.title = 'Chọn điểm đến, rồi bấm vào khối nhà tương ứng';
+  const save = document.createElement('button');
+  save.type = 'button';
+  save.textContent = 'Xuất gắn tòa nhà';
+  root.querySelector('.hvcb-buttons').append(assign, save);
+
+  function clearBuildingHighlight() {
+    ctx.beforeHighlight?.();
+    for (const {mesh, original, clones} of activeMaterials) {
+      mesh.material = original;
+      delete mesh.userData.hvcbDestinationActive;
+      clones.forEach(m => m.dispose());
+    }
+    activeMaterials = [];
+  }
+
+  function highlightDestination() {
+    const key = links[dest.value];
+    if (!key) return;
+    ctx.beforeHighlight?.();
+    ctx.getBuildingGroup?.()?.traverse(mesh => {
+      if (!mesh.isMesh || mesh.userData.hvcbBuildingKey !== key) return;
+      const original = mesh.material;
+      const clones = (Array.isArray(original) ? original : [original]).map(m => {
+        const c = m.clone();
+        // Keep deliberately invisible caps invisible.
+        if (!(c.transparent && c.opacity === 0)) {
+          c.color?.setHex(0xffc247);
+          c.emissive?.setHex(0xffa000);
+          if (c.emissive) c.emissiveIntensity = 0.85;
+        }
+        return c;
+      });
+      mesh.material = Array.isArray(original) ? clones : clones[0];
+      mesh.userData.hvcbDestinationActive = true;
+      activeMaterials.push({mesh, original, clones});
+    });
+  }
+
+  function stopPicking() {
+    picking = false;
+    assign.textContent = 'Gắn tòa nhà';
+    if (ctx.canvas) ctx.canvas.style.cursor = '';
+  }
+  assign.addEventListener('click', () => {
+    if (picking) { stopPicking(); renderRoute(false); return; }
+    picking = true;
+    assign.textContent = 'Hủy gắn';
+    if (ctx.canvas) ctx.canvas.style.cursor = 'crosshair';
+    status.textContent = 'Bấm vào khối nhà của ' + routes.destinations[dest.value] + ' (Esc để hủy).';
+  });
+  window.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && picking) { stopPicking(); renderRoute(false); }
+  });
+  ctx.canvas?.addEventListener('click', e => {
+    if (!picking) return;
+    e.stopPropagation();
+    const rect = ctx.canvas.getBoundingClientRect();
+    const pointer = new THREE.Vector2(
+      (e.clientX - rect.left) / rect.width * 2 - 1,
+      -(e.clientY - rect.top) / rect.height * 2 + 1
+    );
+    const ray = new THREE.Raycaster();
+    ray.setFromCamera(pointer, camera);
+    const buildings = ctx.getBuildingGroup?.();
+    if (!buildings) return;
+    const hit = ray.intersectObject(buildings, true).find(h => h.object.userData.hvcbBuildingKey);
+    if (!hit) { status.textContent = 'Chưa chọn trúng tòa nhà. Bà bấm vào mái hoặc mặt tòa nhà nhé.'; return; }
+    links[dest.value] = hit.object.userData.hvcbBuildingKey;
+    let stored = true;
+    try { localStorage.setItem(storageKey, JSON.stringify(links)); } catch (_) { stored = false; }
+    stopPicking();
+    show = true;
+    hide.textContent = 'Ẩn tuyến';
+    renderRoute(false);
+    status.append(document.createTextNode(stored
+      ? ' · Đã nhớ tòa nhà trên trình duyệt này.'
+      : ' · Chưa lưu được trên trình duyệt; hãy xuất gắn tòa nhà.'));
+  }, true);
+  save.addEventListener('click', () => {
+    const blob = new Blob([JSON.stringify(links, null, 2)], {type: 'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'campus_highlights.json'; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  });
+  // Optional published mapping makes the same destination glow for every visitor.
+  fetch('./campus_highlights.json', {cache: 'no-cache'})
+    .then(r => r.ok ? r.json() : null)
+    .then(shared => {
+      if (!shared || typeof shared !== 'object' || Array.isArray(shared)) return;
+      links = {...shared, ...links};
+      renderRoute(false);
+    }).catch(() => {});
+
   function clearRoute() {
+    clearBuildingHighlight();
     for (const obj of [...group.children]) {
       if (obj === traveler) continue;
       group.remove(obj);
@@ -128,6 +235,7 @@ export async function createCampusNavigation(ctx) {
     for (let i = 1; i < current.length - 1; i++) makeDot(current[i], 0xfacc15, 1.4);
     makeLabel(current[0], `CỔNG SỐ ${gate.value}`, 'hvcb-label-start');
     makeLabel(current[current.length - 1], routes.destinations[dest.value].toUpperCase(), 'hvcb-label-end');
+    highlightDestination();
     traveler.visible = true;
     traveler.position.copy(current[0]);
     const mins = total / (routes.speed_m_per_min || 75);
@@ -172,8 +280,8 @@ export async function createCampusNavigation(ctx) {
   }
 
   function redraw() { renderRoute(false); }
-  gate.addEventListener('change', () => renderRoute(true));
-  dest.addEventListener('change', () => renderRoute(true));
+  gate.addEventListener('change', () => { stopPicking(); renderRoute(true); });
+  dest.addEventListener('change', () => { stopPicking(); renderRoute(true); });
   find.addEventListener('click', () => renderRoute(true));
   focus.addEventListener('click', focusRoute);
   hide.addEventListener('click', () => {

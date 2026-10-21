@@ -1,7 +1,7 @@
 /* global GeoTIFF */
 
 import * as THREE from 'three';
-import { createCampusNavigation } from './campus_nav.js';
+import { createCampusNavigation } from './campus_nav.js?v=highlight1';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 import { Sky } from 'three/addons/objects/Sky.js';
@@ -7011,6 +7011,7 @@ async function buildBuildingLayer(yapilar, buildToken = sceneBuildToken) {
       let finalTowerShape = shape;
       let finalTowerFootprint = footprint;
       const buildingData = {
+        hvcbBuildingKey: `${sx.toFixed(3)},${sy.toFixed(3)}`,
         ...(f.properties || {}),
         planx_calc_footprint_area: footprintArea,
         planx_calc_floor_area: floorArea,
@@ -8708,6 +8709,7 @@ function _unhoverBuilding() {
   _hoveredBldg = null;
 }
 function _doHoverBuilding(mesh) {
+  if (mesh.userData.hvcbDestinationActive) { _unhoverBuilding(); return; }
   if (mesh === _hoveredBldg) return;
   _unhoverBuilding();
   _hoveredBldg = mesh;
@@ -9508,6 +9510,8 @@ function startHvcbNavigation() {
   if (info) info.textContent = 'Đang khởi tạo chỉ đường…';
   createCampusNavigation({
     THREE, CSS2DObject, scene, camera, controls,
+    getBuildingGroup: () => buildingGroup, canvas: renderer.domElement,
+    beforeHighlight: () => _unhoverBuilding(),
     metersToLocal, terrainLocalYAt,
     terrainLayerHeight: LAYER.road,
     isReady: () => Boolean(window.__sceneReady)
