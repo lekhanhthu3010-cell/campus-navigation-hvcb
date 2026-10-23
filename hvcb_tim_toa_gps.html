@@ -1,0 +1,103 @@
+
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HVCB – Tìm tòa nhà & GPS thời gian thực</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+:root {--navy:#15334b;--blue:#1c73b8;--amber:#f5ae32;--gray:#607286}
+*{box-sizing:border-box}body{margin:0;font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--navy);background:#eef3f8}
+header{background:linear-gradient(115deg,#0d304b,#23658e);padding:17px 20px;color:white}
+header h1{margin:0;font-size:20px;line-height:1.3}header p{margin:5px 0 0;font-size:12px;opacity:.84}
+.app{display:grid;grid-template-columns:minmax(280px,338px) 1fr;min-height:calc(100dvh - 80px)}
+.panel{padding:17px;display:flex;flex-direction:column;gap:13px;background:white;box-shadow:3px 0 16px #1931470d;z-index:10}
+label{font-size:13px;font-weight:700;display:block;margin-bottom:5px}
+input,select{width:100%;padding:11px 12px;border-radius:10px;border:1px solid #b9c9d7;font:inherit;background:white;color:#17324a}
+.button{border:0;border-radius:10px;background:#205f94;color:white;padding:11px 13px;font:600 14px system-ui;cursor:pointer}
+.button:disabled{opacity:.45;cursor:not-allowed}.button.alt{background:#e6eff6;color:#17496d}.button.dark{background:#18364e}
+.row{display:flex;gap:8px;flex-wrap:wrap}.row>*{flex:1}
+.mapWrap{position:relative;min-height:75vh}#map{width:100%;height:100%;min-height:75vh}
+#mapBadge{position:absolute;top:12px;right:12px;z-index:800;background:#fff;padding:7px 11px;border-radius:9px;font-size:12px;box-shadow:0 2px 10px #0003}
+.card{background:#f2f7fb;border:1px solid #dbe8f2;border-radius:13px;padding:12px}
+.strong{font-size:17px;font-weight:750}.muted{color:var(--gray);font-size:12px}.stat{font-size:13px}
+.pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;background:#e7f0f7;padding:6px 9px;font-size:12px}
+.dot{width:9px;height:9px;display:inline-block;border-radius:50%;background:#b1bdc7}.dot.live{background:#23a15e;box-shadow:0 0 0 4px #d5f4e1}
+footer{font-size:11px;color:#607286;margin-top:auto;line-height:1.5}
+@media(max-width:760px){header{padding:12px 15px}header h1{font-size:18px}.app{display:flex;flex-direction:column}.panel{padding:12px;gap:10px}.mapWrap{min-height:65dvh}#map{height:65dvh;min-height:380px}footer{margin-top:6px}}
+</style></head><body>
+<header><h1>HVCB • Bản đồ tìm tòa nhà & GPS</h1><p>Học viện Cán bộ TP.HCM — vị trí trên điện thoại, tuyến khuôn viên đã số hóa</p></header>
+<main class="app"><aside class="panel">
+<div><label for="query">Tìm điểm đến trong Học viện</label><input id="query" list="places" autocomplete="off" placeholder="Ví dụ: Tòa C, Hội trường A..."><datalist id="places"></datalist></div>
+<div class="row"><button id="searchBtn" class="button">🔎 Tìm & làm sáng</button><button id="clearBtn" class="button alt">Bỏ chọn</button></div>
+<div><label for="gate">Tuyến được số hóa từ</label><select id="gate"><option value="auto">Tự chọn cổng gần GPS hơn</option><option value="1">Cổng 1</option><option value="2">Cổng 2</option></select></div>
+<div class="row"><button id="gpsBtn" class="button dark">📍 Bật GPS trực tiếp</button><button id="followBtn" class="button alt">Theo dõi: Tắt</button></div>
+<div class="card"><div class="pill"><span id="gpsDot" class="dot"></span><span id="gpsStatus">GPS chưa bật</span></div><div id="gpsAccuracy" class="muted" style="margin-top:6px">Mở trên điện thoại, HTTPS và cho phép truy cập vị trí.</div></div>
+<div class="card"><div class="strong" id="destTitle">Chưa chọn điểm đến</div><div id="destHint" class="stat">Tìm hoặc chọn tên tòa nhà để bắt đầu.</div><div id="distText" class="stat" style="margin-top:8px"></div><div id="routeHint" class="muted" style="margin-top:6px"></div></div>
+<div class="row"><button id="googleBtn" class="button" disabled>🧭 Mở Google Maps</button><button id="focusBtn" class="button alt" disabled>🎯 Xem tòa nhà</button></div>
+<div class="muted">Bấm vào bản đồ để xem tọa độ <span id="coordText">(lat, lon)</span>. Dùng để kiểm tra vị trí trong Google Maps hoặc QGIS.</div>
+<footer>Vị trí GPS được xử lý trong trình duyệt này; trang không gửi dữ liệu vị trí về máy chủ riêng. Tuyến bên trong Học viện chỉ mang tính tham khảo theo dữ liệu đã số hóa, không thay thế biển chỉ dẫn thực tế. GPS trong nhà có thể sai lệch.</footer>
+</aside><section class="mapWrap"><div id="map"></div><div id="mapBadge">Đang tải nền bản đồ…</div></section></main>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>const APP_DATA = {"googleKey":"","sites":[{"id":"toa-a","name":"Tòa A","aliases":["toa a","toà a"],"lat":10.812643919955221,"lng":106.70136636414759},{"id":"toa-b","name":"Tòa B","aliases":["toa b","toà b"],"lat":10.813044421871027,"lng":106.70151899972986},{"id":"toa-c","name":"Tòa C","aliases":["toa c","toà c"],"lat":10.813320918464106,"lng":106.70142436417947},{"id":"hoi-truong-a","name":"Hội trường A","aliases":["hoi truong a","hội trường"],"lat":10.811592595092607,"lng":106.70278499972987},{"id":"ktx","name":"Ký túc xá sinh viên","aliases":["ky tuc xa","kí túc xá","ktx"],"lat":10.81310647274417,"lng":106.70273142526278}],"routes":{"1":{"toa-a":[[10.811392698407644,106.70155166973154],[10.811932325833077,106.70127531752098],[10.812451594919061,106.70135831752096],[10.812643919955221,106.70136636414759]],"toa-b":[[10.811392698407644,106.70155166973154],[10.811932325833077,106.70127531752098],[10.812451594919061,106.70135831752096],[10.812643919955221,106.70136636414759],[10.812894306113778,106.70151853840903],[10.813044421871027,106.70151899972986]],"toa-c":[[10.811392698407644,106.70155166973154],[10.811932325833077,106.70127531752098],[10.812451594919061,106.70135831752096],[10.812643919955221,106.70136636414759],[10.812894306113778,106.70151853840903],[10.813044421871027,106.70151899972986],[10.813220594763687,106.7015139531032],[10.813320918464106,106.70142436417947]],"hoi-truong-a":[[10.811394822730751,106.70155686847923],[10.81139969133123,106.70211790647659],[10.811415864328366,106.70243127089431],[10.811592595092607,106.70278499972987]],"ktx":[[10.81143524380051,106.70154423679658],[10.812076095520101,106.70210563279075],[10.812454152782852,106.70238299974874],[10.812739056507585,106.7021959997488],[10.81310647274417,106.70273142526278]]},"2":{"toa-a":[[10.812346328011804,106.70120095884509],[10.812654571630533,106.70150536546905]],"toa-b":[[10.812346328011804,106.70120095884509],[10.812654571630533,106.70150536546905],[10.812895594829309,106.70154504637537],[10.813037421872107,106.70151958870434]],"toa-c":[[10.812346328011804,106.70120095884509],[10.812654571630533,106.70150536546905],[10.812895594829309,106.70154504637537],[10.813037421872107,106.70151958870434],[10.813213787260166,106.70152731752096],[10.813424553881097,106.70152195310317]],"hoi-truong-a":[[10.812346328011804,106.70120095884509],[10.812068152837087,106.70122463533099],[10.811758960461962,106.70134195312212],[10.811240691359124,106.70232268195764],[10.811649233616903,106.70279111502857]],"ktx":[[10.812346328011804,106.70120095884509],[10.81206969121349,106.70136695312209],[10.811566483388178,106.70173843905214],[10.812382325750024,106.70234363533099],[10.812764056503385,106.70219099974878],[10.812964285096962,106.70253700469446]]}},"shapes":[]};
+const SITES = APP_DATA.sites, ROUTES = APP_DATA.routes, SHAPES = APP_DATA.shapes;
+const DEFAULT_CENTER = {lat:10.8123,lng:106.7018};
+let map=null, engine=null, selectedId=null, userPos=null, gpsWatchId=null, followMe=false;
+let routeLayer=null, connector=null, targetMarker=null, gpsMarker=null, accuracyCircle=null, targetGlow=null, buildingLayers=[];
+const el = id => document.getElementById(id);
+function norm(s){return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').replace(/Đ/g,'D').toLowerCase().trim()}
+function rad(d){return d*Math.PI/180}
+function dist(a,b){const R=6371000,dlat=rad(b[0]-a[0]),dlon=rad(b[1]-a[1]);const v=Math.sin(dlat/2)**2+Math.cos(rad(a[0]))*Math.cos(rad(b[0]))*Math.sin(dlon/2)**2;return 2*R*Math.asin(Math.min(1,Math.sqrt(v)))}
+function setGpsStatus(text,live=false){el('gpsStatus').textContent=text;el('gpsDot').className=live?'dot live':'dot'}
+function findSite(text){let q=norm(text);if(!q)return null;return SITES.find(p=>norm(p.name)===q||p.aliases.some(a=>norm(a)===q))||SITES.find(p=>norm(p.name).includes(q)||p.aliases.some(a=>norm(a).includes(q)))}
+function chosenSite(){return SITES.find(s=>s.id===selectedId)||null}
+function routeFor(gate,id){return ROUTES[gate]&&ROUTES[gate][id]}
+function activeGate(){const option=el('gate').value;if(option!=='auto')return option;if(!userPos)return '1';const a=routeFor('1',selectedId),b=routeFor('2',selectedId);if(!a)return '2';if(!b)return '1';const p=[userPos.lat,userPos.lng];const n1=closestSegmentProjection(p,a),n2=closestSegmentProjection(p,b);const tolerance=Math.min(50,Math.max(22,1.2*(userPos.accuracy||10)));if(n1&&n2&&Math.min(n1.m,n2.m)<=tolerance)return n1.m<=n2.m?'1':'2';return dist(p,a[0])<=dist(p,b[0])?'1':'2'}
+function destinationPoint(site){let path=routeFor(activeGate(),site.id)||routeFor('1',site.id)||routeFor('2',site.id);return path?path[path.length-1]:[site.lat,site.lng]}
+function clearVisuals(){ if(engine==='leaflet'){for(let k of [routeLayer,connector,targetMarker,targetGlow])if(k)map.removeLayer(k)} else if(engine==='google'){for(let k of [routeLayer,connector,targetMarker,targetGlow])if(k)k.setMap(null)} routeLayer=connector=targetMarker=targetGlow=null }
+function drawRoute(path){if(engine==='leaflet'){routeLayer=L.polyline(path,{color:'#087db7',weight:6,opacity:.9,dashArray:'10 7'}).addTo(map)}else{routeLayer=new google.maps.Polyline({map,path:path.map(p=>({lat:p[0],lng:p[1]})),strokeColor:'#1685ca',strokeWeight:6,strokeOpacity:.9})}}
+function drawConnector(a,b){if(engine==='leaflet'){connector=L.polyline([a,b],{color:'#64748b',weight:2,dashArray:'4 8'}).addTo(map)}else{connector=new google.maps.Polyline({map,path:[{lat:a[0],lng:a[1]},{lat:b[0],lng:b[1]}],strokeColor:'#64748b',strokeOpacity:.65,strokeWeight:2})}}
+function highlightShapes(){if(engine==='leaflet'){buildingLayers.forEach(item=>{let on=item.id===selectedId;item.layer.setStyle({color:on?'#e9a100':'#e9a100',weight:on?5:0,opacity:on?1:0,fillColor:'#ffd64f',fillOpacity:on?.65:0});if(on)item.layer.bringToFront()})}else if(engine==='google'){map.data.setStyle(f=>({visible:f.getProperty('site_id')===selectedId,fillColor:'#ffd64f',fillOpacity:.65,strokeColor:'#e99c00',strokeWeight:5,strokeOpacity:1,clickable:false}))}}
+function panToPoint(lat,lng,zoom=19){if(engine==='leaflet')map.setView([lat,lng],zoom,{animate:true});else{map.panTo({lat,lng});map.setZoom(zoom)}}
+function closestSegmentProjection(pos,path){ // Ước tính điểm gần nhất trên từng đoạn lối đi (mặt phẳng cục bộ).
+ const clat=pos[0],lonM=111320*Math.cos(rad(clat)),latM=111132;
+ let best=null;for(let i=0;i<path.length-1;i++){const A=path[i],B=path[i+1];const ax=(A[1]-pos[1])*lonM,ay=(A[0]-pos[0])*latM,bx=(B[1]-pos[1])*lonM,by=(B[0]-pos[0])*latM;const vx=bx-ax,vy=by-ay;const t=Math.max(0,Math.min(1,-(ax*vx+ay*vy)/Math.max(1e-9,vx*vx+vy*vy)));const dx=ax+t*vx,dy=ay+t*vy,dm=Math.hypot(dx,dy);if(!best||dm<best.m)best={m:dm,i,t,point:[A[0]+t*(B[0]-A[0]),A[1]+t*(B[1]-A[1])]}}return best;
+}
+function routeMeters(points){let total=0;for(let i=1;i<points.length;i++)total+=dist(points[i-1],points[i]);return total}
+function refreshSelected(focus=false){
+ clearVisuals();highlightShapes();const s=chosenSite();el('googleBtn').disabled=!s;el('focusBtn').disabled=!s;
+ if(!s){el('destTitle').textContent='Chưa chọn điểm đến';el('distText').textContent='';el('routeHint').textContent='';el('destHint').textContent='Tìm tòa nhà để bắt đầu.';return}
+ const gate=activeGate(),full=routeFor(gate,s.id)||[],destination=destinationPoint(s);
+ el('destTitle').textContent=s.name;
+ el('destHint').textContent='Điểm đích: '+destination[0].toFixed(6)+', '+destination[1].toFixed(6)+' (điểm cuối tuyến số hóa)';
+ let path=full,routeNote=`Tuyến tham khảo từ Cổng ${gate}; không phải chỉ đường tự động của Google Maps.`;
+ if(userPos&&full.length>1){let p=[userPos.lat,userPos.lng],near=closestSegmentProjection(p,full);const acceptable=Math.min(50,Math.max(22,1.2*(userPos.accuracy||10)));
+  if(near&&near.m<=acceptable){path=[near.point,...full.slice(near.i+1)];if(near.m>3)drawConnector(p,near.point);routeNote=`Đã ước tính vị trí trên tuyến từ Cổng ${gate} (lệch tuyến ${Math.round(near.m)} m). Chỉ dùng khi GPS đủ chính xác.`}
+  else routeNote=`GPS chưa đủ gần tuyến đã số hóa (${near?Math.round(near.m):'?'} m); đang hiện tuyến đầy đủ từ Cổng ${gate}, KHÔNG tự nối đường đi từ vị trí hiện tại.`;
+ }
+ if(path.length>=2)drawRoute(path);
+ if(engine==='leaflet'){targetGlow=L.circle(destination,{radius:14,color:'#efa108',weight:3,fillColor:'#ffd743',fillOpacity:.22}).addTo(map);targetMarker=L.circleMarker(destination,{radius:10,color:'#fff',weight:3,fillColor:'#ef7f16',fillOpacity:1}).addTo(map).bindTooltip(s.name,{permanent:true,direction:'top',offset:[0,-10]})}
+ else{targetGlow=new google.maps.Circle({map,center:{lat:destination[0],lng:destination[1]},radius:14,strokeColor:'#f4a10b',strokeWeight:3,fillColor:'#ffcf42',fillOpacity:.22});targetMarker=new google.maps.Marker({map,position:{lat:destination[0],lng:destination[1]},label:{text:'★',color:'#ffffff'},title:s.name,animation:google.maps.Animation.DROP})}
+ if(userPos){let p=[userPos.lat,userPos.lng],d=dist(p,destination),remaining=path.length>1?routeMeters(path):d;el('distText').textContent=`Cách đích theo đường thẳng ~${Math.round(d)} m • Phần tuyến còn lại ~${Math.round(remaining)} m`;if(d<18)routeNote+=' GPS báo đang gần đích (chưa xác nhận đúng cửa vào).'}else el('distText').textContent=`Tuyến từ Cổng ${gate}: ~${Math.round(routeMeters(full))} m. Hãy bật GPS để theo dõi.`;
+ el('routeHint').textContent=routeNote;
+ if(focus)panToPoint(destination[0],destination[1],19);
+}
+function searchDestination(){const found=findSite(el('query').value);if(!found){el('destHint').textContent='Không có điểm đến này. Chọn tên trong gợi ý.';return}selectedId=found.id;el('query').value=found.name;refreshSelected(true)}
+function clearSelection(){selectedId=null;el('query').value='';refreshSelected(false)}
+function setLivePoint(p){if(engine==='leaflet'){if(!gpsMarker){gpsMarker=L.circleMarker([p.lat,p.lng],{radius:8,weight:3,color:'white',fillColor:'#145bee',fillOpacity:1}).addTo(map).bindPopup('Vị trí GPS của bạn');accuracyCircle=L.circle([p.lat,p.lng],{radius:p.accuracy,color:'#4b89f6',weight:1,fillColor:'#5c99ff',fillOpacity:.10}).addTo(map)}else{gpsMarker.setLatLng([p.lat,p.lng]);accuracyCircle.setLatLng([p.lat,p.lng]);accuracyCircle.setRadius(p.accuracy)}}else{if(!gpsMarker){gpsMarker=new google.maps.Marker({map,position:{lat:p.lat,lng:p.lng},title:'Vị trí GPS của bạn',icon:{path:google.maps.SymbolPath.CIRCLE,scale:9,fillColor:'#1769ed',fillOpacity:1,strokeColor:'#fff',strokeWeight:3}});accuracyCircle=new google.maps.Circle({map,center:{lat:p.lat,lng:p.lng},radius:p.accuracy,strokeWeight:1,strokeColor:'#1769ed',fillColor:'#1769ed',fillOpacity:.1})}else{gpsMarker.setPosition({lat:p.lat,lng:p.lng});accuracyCircle.setCenter({lat:p.lat,lng:p.lng});accuracyCircle.setRadius(p.accuracy)}}
+ if(followMe)panToPoint(p.lat,p.lng,19);
+}
+function startGps(){if(!('geolocation'in navigator)){setGpsStatus('Thiết bị không có Geolocation');return}if(!window.isSecureContext){setGpsStatus('Cần website HTTPS để bật GPS');return}if(gpsWatchId!==null){setGpsStatus('GPS đang được theo dõi',true);return}
+ setGpsStatus('Đang xin quyền GPS…');gpsWatchId=navigator.geolocation.watchPosition(pos=>{
+ userPos={lat:pos.coords.latitude,lng:pos.coords.longitude,accuracy:pos.coords.accuracy};setGpsStatus('GPS đang cập nhật',true);el('gpsAccuracy').textContent=`Sai số vị trí báo cáo: ±${Math.round(userPos.accuracy)} m`+(userPos.accuracy>35?' • Có thể lệch khỏi lối đi':'');setLivePoint(userPos);if(selectedId)refreshSelected(false)
+ },err=>{const msg={1:'Bạn chưa cấp quyền truy cập vị trí',2:'Không xác định được vị trí',3:'Định vị quá thời gian'}[err.code]||err.message;setGpsStatus(msg);if(err.code===1&&gpsWatchId!==null){navigator.geolocation.clearWatch(gpsWatchId);gpsWatchId=null}}, {enableHighAccuracy:true,maximumAge:2000,timeout:20000})
+}
+function openGoogleDirections(){let s=chosenSite();if(!s)return;let d=destinationPoint(s);let u='https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(d[0]+','+d[1])+'&travelmode=walking';if(userPos)u+='&origin='+encodeURIComponent(userPos.lat+','+userPos.lng);window.open(u,'_blank','noopener,noreferrer')}
+function mapClick(lat,lng){el('coordText').textContent=lat.toFixed(7)+', '+lng.toFixed(7)}
+function bootLeaflet(){engine='leaflet';map=L.map('map',{zoomControl:true}).setView([DEFAULT_CENTER.lat,DEFAULT_CENTER.lng],18);L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(map);
+ SHAPES.forEach(f=>{const layer=L.geoJSON(f,{interactive:false,style:{weight:0,opacity:0,fillOpacity:0}}).addTo(map);buildingLayers.push({id:f.properties.site_id,layer})});map.on('click',ev=>mapClick(ev.latlng.lat,ev.latlng.lng));el('mapBadge').textContent='Bản đồ OpenStreetMap • không cần key';refreshSelected()}
+function bootGoogle(){engine='google';try{map=new google.maps.Map(el('map'),{center:DEFAULT_CENTER,zoom:18,mapTypeId:'hybrid',tilt:45,gestureHandling:'greedy',fullscreenControl:true});map.data.addGeoJson({type:'FeatureCollection',features:SHAPES});map.data.setStyle({visible:false});map.addListener('click',ev=>{if(ev.latLng)mapClick(ev.latLng.lat(),ev.latLng.lng())});el('mapBadge').textContent='Nền Google Maps';refreshSelected()}catch(err){console.warn(err);bootLeaflet()}}
+function init(){for(let s of SITES){let option=document.createElement('option');option.value=s.name;el('places').appendChild(option)}el('searchBtn').onclick=searchDestination;el('clearBtn').onclick=clearSelection;el('query').onkeydown=e=>{if(e.key==='Enter')searchDestination()};el('gate').onchange=()=>refreshSelected(false);el('gpsBtn').onclick=startGps;el('googleBtn').onclick=openGoogleDirections;el('focusBtn').onclick=()=>{const s=chosenSite();if(s){let d=destinationPoint(s);panToPoint(d[0],d[1],19)}};el('followBtn').onclick=()=>{followMe=!followMe;el('followBtn').textContent='Theo dõi: '+(followMe?'Bật':'Tắt');if(followMe&&userPos)panToPoint(userPos.lat,userPos.lng,19)};
+ if(APP_DATA.googleKey){window.bootGoogle=bootGoogle;const script=document.createElement('script');script.src='https://maps.googleapis.com/maps/api/js?key='+encodeURIComponent(APP_DATA.googleKey)+'&v=weekly&callback=bootGoogle&loading=async';script.onerror=()=>{el('mapBadge').textContent='Google Maps lỗi → OSM';bootLeaflet()};document.head.appendChild(script)}else bootLeaflet()
+}
+init();</script>
+</body></html>
+
