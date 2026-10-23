@@ -1,278 +1,40 @@
 <!doctype html>
 <html lang="vi">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Chỉ đường Học viện Cán bộ TP.HCM</title>
-
-  <link rel="stylesheet"
-    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-
-  <style>
-    * { box-sizing: border-box; }
-
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: #f3f6fa;
-      color: #17324a;
-    }
-
-    header {
-      padding: 16px;
-      background: #133c60;
-      color: white;
-    }
-
-    h2 { margin: 0 0 5px; font-size: 20px; }
-    header p { margin: 0; font-size: 13px; }
-
-    .panel {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-      align-items: center;
-      padding: 13px 16px;
-      background: white;
-    }
-
-    .panel label { font-weight: bold; }
-
-    select {
-      padding: 10px;
-      border: 1px solid #bccbdb;
-      border-radius: 8px;
-      min-width: 215px;
-      max-width: 100%;
-      font-size: 15px;
-    }
-
-    #info {
-      font-size: 14px;
-      line-height: 1.6;
-    }
-
-    #map {
-      height: min(75vh, 650px);
-      min-height: 400px;
-      width: 100%;
-    }
-
-    .map-label {
-      display: inline-block;
-      background: white;
-      border: 2px solid;
-      border-radius: 6px;
-      padding: 4px 7px;
-      white-space: nowrap;
-      font-weight: bold;
-      font-size: 12px;
-      box-shadow: 0 2px 6px #0004;
-    }
-
-    .start {
-      border-color: #15803d;
-      color: #15803d;
-    }
-
-    .end {
-      border-color: #b91c1c;
-      color: #b91c1c;
-    }
-
-    footer {
-      padding: 10px 16px;
-      font-size: 12px;
-      color: #475569;
-    }
-  </style>
+<meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>HVCB – Bản đồ 3D và chỉ đường GPS</title>
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.12.0/dist/maplibre-gl.css" />
+<link rel="stylesheet" href="style.css" />
 </head>
-
 <body>
-  <header>
-    <h2>CAMPUS NAVIGATION SYSTEM</h2>
-    <p>Học viện Cán bộ TP.HCM — Xuất phát từ Cổng số 1</p>
-  </header>
-
-  <div class="panel">
-    <label for="destination">Chọn điểm đến:</label>
-    <select id="destination"></select>
-    <div id="info"></div>
-  </div>
-
-  <div id="map"></div>
-
-  <footer>
-    Tuyến theo các điểm đã số hóa.
-    Khoảng cách và thời gian đi bộ là ước tính.
-  </footer>
-
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/leaflet-ant-path@1.3.0/dist/leaflet-ant-path.js"></script>
-
-  <script>
-    const routes = {"Tòa A": [[10.811392698407644, 106.70155166973154], [10.811932325833077, 106.70127531752098], [10.812451594919061, 106.70135831752096], [10.812643919955221, 106.70136636414759]], "Tòa B": [[10.811392698407644, 106.70155166973154], [10.811932325833077, 106.70127531752098], [10.812451594919061, 106.70135831752096], [10.812643919955221, 106.70136636414759], [10.812894306113778, 106.70151853840903], [10.813044421871027, 106.70151899972986]], "Tòa C": [[10.811392698407644, 106.70155166973154], [10.811932325833077, 106.70127531752098], [10.812451594919061, 106.70135831752096], [10.812643919955221, 106.70136636414759], [10.812894306113778, 106.70151853840903], [10.813044421871027, 106.70151899972986], [10.813220594763687, 106.7015139531032], [10.813320918464106, 106.70142436417947]], "Hội trường A": [[10.811394822730751, 106.70155686847923], [10.81139969133123, 106.70211790647659], [10.811415864328366, 106.70243127089431], [10.811592595092607, 106.70278499972987]], "Ký túc xá sinh viên": [[10.81143524380051, 106.70154423679658], [10.812076095520101, 106.70210563279075], [10.812454152782852, 106.70238299974874], [10.812739056507585, 106.7021959997488], [10.81310647274417, 106.70273142526278]]};
-
-    const map = L.map('map').setView(
-      [10.8123, 106.7018], 17
-    );
-
-    L.tileLayer(
-      'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-      {
-        attribution: 'Imagery © Esri and its data providers',
-        maxZoom: 19
-      }
-    ).addTo(map);
-
-    L.control.scale({imperial: false}).addTo(map);
-
-    const selection = document.getElementById('destination');
-
-    Object.keys(routes).forEach(name => {
-      const option = document.createElement('option');
-      option.value = name;
-      option.textContent = name;
-      selection.appendChild(option);
-    });
-
-    let layers = [];
-
-    function add(layer) {
-      layer.addTo(map);
-      layers.push(layer);
-    }
-
-    // Tính khoảng cách theo mét
-    function distance(a, b) {
-      const rad = x => x * Math.PI / 180;
-      const R = 6371000;
-
-      const dLat = rad(b[0] - a[0]);
-      const dLon = rad(b[1] - a[1]);
-
-      const h = Math.sin(dLat / 2) ** 2 +
-        Math.cos(rad(a[0])) *
-        Math.cos(rad(b[0])) *
-        Math.sin(dLon / 2) ** 2;
-
-      return R * 2 * Math.atan2(
-        Math.sqrt(h),
-        Math.sqrt(1 - h)
-      );
-    }
-
-    // Tạo nhãn tên công trình
-    function label(point, name, css) {
-      const html = '<span class="map-label ' +
-        css + '">' + name + '</span>';
-
-      return L.marker(point, {
-        icon: L.divIcon({
-          html: html,
-          className: '',
-          iconSize: [1, 1],
-          iconAnchor: [-13, 12]
-        })
-      });
-    }
-
-    // HIỂN THỊ TUYẾN THEO ĐIỂM ĐẾN
-    function showRoute(name) {
-
-      // Xóa tuyến cũ
-      layers.forEach(layer => map.removeLayer(layer));
-      layers = [];
-
-      const points = routes[name];
-
-      // Tuyến chuyển động AntPath
-      const options = {
-        color: '#2563eb',
-        pulseColor: '#ffffff',
-        weight: 7,
-        dashArray: [10, 15],
-        delay: 650
-      };
-
-      const path = L.polyline.antPath
-        ? L.polyline.antPath(points, options)
-        : L.polyline(points, {
-            color: '#2563eb',
-            weight: 7
-          });
-
-      add(path);
-
-      // Đánh dấu lối đi trung gian
-      points.slice(1, -1).forEach((point, i) => {
-        add(
-          L.circleMarker(point, {
-            radius: 5,
-            color: '#c58a00',
-            weight: 2,
-            fillColor: '#facc15',
-            fillOpacity: 1
-          }).bindPopup('Lối đi trung gian ' + (i + 1))
-        );
-      });
-
-      // Đánh dấu Cổng số 1
-      add(
-        L.circleMarker(points[0], {
-          radius: 9,
-          color: 'white',
-          weight: 2,
-          fillColor: '#16a34a',
-          fillOpacity: 1
-        }).bindPopup('Cổng số 1')
-      );
-
-      // Đánh dấu điểm đến
-      add(
-        L.circleMarker(points[points.length - 1], {
-          radius: 9,
-          color: 'white',
-          weight: 2,
-          fillColor: '#dc2626',
-          fillOpacity: 1
-        }).bindPopup(name)
-      );
-
-      // Tên hiển thị trực tiếp
-      add(label(points[0], 'CỔNG SỐ 1', 'start'));
-      add(label(
-        points[points.length - 1],
-        name.toUpperCase(),
-        'end'
-      ));
-
-      // Tính thông tin tuyến
-      let meters = 0;
-
-      for (let i = 1; i < points.length; i++) {
-        meters += distance(points[i - 1], points[i]);
-      }
-
-      document.getElementById('info').textContent =
-        'Cổng số 1 → ' + name +
-        ' | ' + Math.round(meters) + ' m' +
-        ' | Khoảng ' + (meters / 75).toFixed(1) +
-        ' phút đi bộ';
-
-      // Phóng đến phạm vi toàn tuyến
-      map.fitBounds(
-        L.latLngBounds(points).pad(0.28)
-      );
-    }
-
-    // Người dùng đổi lựa chọn
-    selection.addEventListener('change', () => {
-      showRoute(selection.value);
-    });
-
-    // Tuyến mặc định
-    showRoute('Tòa A');
-  </script>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="eyebrow">HỌC VIỆN CÁN BỘ TP.HCM</div>
+    <h1>Bản đồ 3D & chỉ đường</h1>
+    <p class="intro">Tìm đúng tòa nhà, tô sáng khối 3D và theo dõi vị trí GPS khi di chuyển.</p>
+    <label for="search">Tìm tên tòa nhà</label>
+    <input id="search" list="names" type="search" placeholder="Ví dụ: Tòa C" autocomplete="off" />
+    <datalist id="names"></datalist>
+    <label for="destination">Hoặc chọn điểm đến</label>
+    <select id="destination"><option value="">Chọn một tòa nhà…</option></select>
+    <label for="gate">Tuyến tham khảo</label>
+    <select id="gate"><option value="auto">Tự chọn tuyến gần GPS</option><option value="1">Từ Cổng 1</option><option value="2">Từ Cổng 2</option></select>
+    <div class="actions"><button id="startGps" class="primary">📍 Bật GPS</button><button id="stopGps" class="secondary">Dừng GPS</button></div>
+    <p id="gpsInfo" class="status" role="status">GPS chưa bật. Dùng website HTTPS trên điện thoại để theo dõi vị trí.</p>
+    <div class="actions"><button id="openGoogle" class="primary" disabled>↗ Chỉ đường Google Maps</button><button id="focus" class="secondary" disabled>Xem tòa</button></div>
+    <div class="info" id="notice">Đang tải bản đồ và khối 3D…</div>
+    <details class="editpanel"><summary>Gán tên khối nhà trên 3D (khi bị sáng sai)</summary>
+      <p>Bước 1: chọn tên tòa ở trên. Bước 2: bật chế độ gán. Bước 3: chạm vào <strong>đúng khối nhà</strong> trên bản đồ. Chạm lần nữa để bỏ gán khối đó.</p>
+      <button id="assignMode" class="secondary">Bật chế độ gán khối</button>
+      <button id="saveLabels" class="secondary">Tải bảng gán tên (.json)</button>
+      <p class="hint">Các sửa đổi được lưu trên trình duyệt này. File JSON giúp lưu lại để dùng trên thiết bị khác.</p>
+    </details>
+    <div class="warning">Đây là bản thử nghiệm. Chiều cao tòa nhà có thể là giá trị giả định. Các tuyến được số hóa từ dự án trước, <strong>chưa kiểm chứng ngoài thực địa</strong>. Google Maps có thể không biết đường nội bộ. Không dựa hoàn toàn vào GPS khi đi vào tòa hoặc khu vực hạn chế.</div>
+    <small class="credit">Hình học công trình © OpenStreetMap contributors. GPS chỉ xử lý trên điện thoại trong phiên truy cập; bản mẫu không có máy chủ thu thập GPS.</small>
+  </aside>
+  <main id="map" aria-label="Bản đồ tương tác 3D khuôn viên Học viện Cán bộ"></main>
+</div>
+<script src="https://unpkg.com/maplibre-gl@5.12.0/dist/maplibre-gl.js"></script>
+<script src="main.js" defer></script>
 </body>
 </html>
