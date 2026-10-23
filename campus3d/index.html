@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>HVCB – Bản đồ 3D và chỉ đường GPS</title>
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.12.0/dist/maplibre-gl.css" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="eyebrow">HỌC VIỆN CÁN BỘ TP.HCM</div>
+    <h1>Bản đồ 3D & chỉ đường</h1>
+    <p class="intro">Tìm đúng tòa nhà, tô sáng khối 3D và theo dõi vị trí GPS khi di chuyển.</p>
+    <label for="search">Tìm tên tòa nhà</label>
+    <input id="search" list="names" type="search" placeholder="Ví dụ: Tòa C" autocomplete="off" />
+    <datalist id="names"></datalist>
+    <label for="destination">Hoặc chọn điểm đến</label>
+    <select id="destination"><option value="">Chọn một tòa nhà…</option></select>
+    <label for="gate">Tuyến tham khảo</label>
+    <select id="gate"><option value="auto">Tự chọn tuyến gần GPS</option><option value="1">Từ Cổng 1</option><option value="2">Từ Cổng 2</option></select>
+    <div class="actions"><button id="startGps" class="primary">📍 Bật GPS</button><button id="stopGps" class="secondary">Dừng GPS</button></div>
+    <p id="gpsInfo" class="status" role="status">GPS chưa bật. Dùng website HTTPS trên điện thoại để theo dõi vị trí.</p>
+    <div class="actions"><button id="openGoogle" class="primary" disabled>↗ Chỉ đường Google Maps</button><button id="focus" class="secondary" disabled>Xem tòa</button></div>
+    <div class="info" id="notice">Đang tải bản đồ và khối 3D…</div>
+    <details class="editpanel"><summary>Gán tên khối nhà trên 3D (khi bị sáng sai)</summary>
+      <p>Bước 1: chọn tên tòa ở trên. Bước 2: bật chế độ gán. Bước 3: chạm vào <strong>đúng khối nhà</strong> trên bản đồ. Chạm lần nữa để bỏ gán khối đó.</p>
+      <button id="assignMode" class="secondary">Bật chế độ gán khối</button>
+      <button id="saveLabels" class="secondary">Tải bảng gán tên (.json)</button>
+      <p class="hint">Các sửa đổi được lưu trên trình duyệt này. File JSON giúp lưu lại để dùng trên thiết bị khác.</p>
+    </details>
+    <div class="warning">Đây là bản thử nghiệm. Chiều cao tòa nhà có thể là giá trị giả định. Các tuyến được số hóa từ dự án trước, <strong>chưa kiểm chứng ngoài thực địa</strong>. Google Maps có thể không biết đường nội bộ. Không dựa hoàn toàn vào GPS khi đi vào tòa hoặc khu vực hạn chế.</div>
+    <small class="credit">Hình học công trình © OpenStreetMap contributors. GPS chỉ xử lý trên điện thoại trong phiên truy cập; bản mẫu không có máy chủ thu thập GPS.</small>
+  </aside>
+  <main id="map" aria-label="Bản đồ tương tác 3D khuôn viên Học viện Cán bộ"></main>
+</div>
+<script src="https://unpkg.com/maplibre-gl@5.12.0/dist/maplibre-gl.js"></script>
+<script src="main.js" defer></script>
+</body>
+</html>
