@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Tham quan 360° | Học viện Cán bộ TP.HCM</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pannellum@2.5.7/build/pannellum.css" />
+<script src="https://cdn.jsdelivr.net/npm/pannellum@2.5.7/build/pannellum.js"></script>
+<style>
+:root{font-family:Arial,Helvetica,sans-serif;color:#eef2f7;background:#0d1622}
+*{box-sizing:border-box}body{margin:0}button{font:inherit;cursor:pointer}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 22px;background:#10263b;border-bottom:1px solid #31465c}
+header strong{font-size:18px}header small{color:#b9cbd9;font-size:12px}
+.page{display:grid;grid-template-columns:minmax(220px,290px) 1fr;min-height:calc(100vh - 69px)}
+aside{background:#142339;padding:18px;border-right:1px solid #38506a;overflow-y:auto}
+aside h2{font-size:15px;margin:0 0 14px}
+.place{width:100%;display:block;text-align:left;border:1px solid #36516d;padding:12px 13px;margin:0 0 9px;border-radius:10px;background:#1b344e;color:white}
+.place.active{background:#28759a;border-color:#7dccf1}
+.place span{opacity:.8;font-size:12px;display:block;margin-top:4px}
+.viewerwrap{min-width:0;position:relative;min-height:72vh;background:#101a27}
+#panorama{position:absolute;inset:0}
+.controls{position:absolute;bottom:22px;left:50%;transform:translateX(-50%);z-index:3;display:flex;gap:8px;max-width:95%;flex-wrap:wrap;justify-content:center}
+.controls button{background:#fff;color:#172b3c;border:0;padding:10px 14px;border-radius:30px;font-weight:700;box-shadow:0 3px 20px #0006}
+.caption{position:absolute;left:20px;top:16px;z-index:3;background:#0c1c2cce;padding:10px 14px;border-radius:10px;max-width:70%;pointer-events:none}
+.caption h1{font-size:18px;margin:0}.caption small{display:block;margin-top:6px;opacity:.84}
+footer{padding:8px 16px;text-align:center;background:#10263b;color:#b6c9d9;font-size:12px}
+@media(max-width:750px){header{padding:12px}header strong{font-size:15px}.page{display:flex;flex-direction:column-reverse}aside{max-height:240px;padding:12px}.viewerwrap{min-height:65vh}.caption{left:10px;top:10px}.caption h1{font-size:15px}.controls{bottom:12px}.controls button{font-size:12px;padding:10px}}
+</style>
+</head>
+<body>
+<header><strong>🏛️ HỌC VIỆN CÁN BỘ TP.HCM · VR360</strong><small>Tham quan ảo bằng ảnh toàn cảnh</small></header>
+<div class="page">
+<aside><h2>📍 Danh sách địa điểm</h2><div id="list"></div><p style="font-size:12px;color:#bdd0dd;line-height:1.5">Bản thử nghiệm: các điểm chuyển cảnh chỉ nối ảnh kế tiếp, chưa mô tả đường đi thực tế. Chưa có định vị GPS.</p></aside>
+<div class="viewerwrap">
+<div id="panorama"></div>
+<div class="caption"><h1 id="scene-title">Đang tải...</h1><small>Kéo chuột để xoay 360° · cuộn để phóng to</small></div>
+<div class="controls"><button id="prev">‹ Trước</button><button id="next">Tiếp ›</button><button id="rotate">↻ Tự xoay</button></div>
+</div>
+</div>
+<footer>Trang VR360 thử nghiệm · Hình ảnh phải được phép sử dụng khi xuất bản công khai</footer>
+<script>
+const scenes = [{"id": "canh_001", "title": "Street View 360 1", "image": "assets/canh_001.jpg"}, {"id": "canh_002", "title": "Street View 360 10", "image": "assets/canh_002.jpg"}, {"id": "canh_003", "title": "Street View 360 2", "image": "assets/canh_003.jpg"}, {"id": "canh_004", "title": "Street View 360 3", "image": "assets/canh_004.jpg"}, {"id": "canh_005", "title": "Street View 360 4", "image": "assets/canh_005.jpg"}, {"id": "canh_006", "title": "Street View 360 5", "image": "assets/canh_006.jpg"}, {"id": "canh_007", "title": "Street View 360 6", "image": "assets/canh_007.jpg"}, {"id": "canh_008", "title": "Street View 360 7", "image": "assets/canh_008.jpg"}, {"id": "canh_009", "title": "Street View 360 8", "image": "assets/canh_009.jpg"}, {"id": "canh_010", "title": "Street View 360 9", "image": "assets/canh_010.jpg"}];
+const list = document.getElementById('list');
+const config = {default:{firstScene:scenes[0].id,sceneFadeDuration:650,autoLoad:true},scenes:{}};
+scenes.forEach((s,i)=>{
+ config.scenes[s.id] = {
+   title:s.title, type:'equirectangular',panorama:s.image,hfov:110,
+   hotSpots: scenes.length>1 ? [{pitch:-7,yaw:30,type:'scene',text:'Ảnh kế tiếp (chưa phải đường đi thật)',sceneId:scenes[(i+1)%scenes.length].id}] : []
+ };
+ let b = document.createElement('button');b.className='place';b.dataset.id=s.id;
+ b.textContent=s.title;
+ let n=document.createElement('span');n.textContent=`Cảnh ${i+1} / ${scenes.length}`;b.appendChild(n);
+ b.onclick=()=>viewer.loadScene(s.id);list.appendChild(b);
+});
+const viewer = pannellum.viewer('panorama',config);
+let turning=false;
+function update(){
+  let id=viewer.getScene(),idx=scenes.findIndex(s=>s.id===id);
+  document.getElementById('scene-title').textContent=idx>=0?scenes[idx].title:'Đang tải...';
+  document.querySelectorAll('.place').forEach(b=>b.classList.toggle('active',b.dataset.id===id));
+}
+function move(offset){let ix=scenes.findIndex(s=>s.id===viewer.getScene());viewer.loadScene(scenes[(ix+offset+scenes.length)%scenes.length].id)}
+document.getElementById('prev').onclick=()=>move(-1);
+document.getElementById('next').onclick=()=>move(1);
+document.getElementById('rotate').onclick=()=>{
+ turning=!turning;
+ if(turning){viewer.startAutoRotate(2);document.getElementById('rotate').textContent='⏸ Dừng xoay'}
+ else{viewer.stopAutoRotate();document.getElementById('rotate').textContent='↻ Tự xoay'}
+};
+viewer.on('scenechange',update);
+update();
+</script>
+</body>
+</html>
